@@ -1,0 +1,10 @@
+name = "Analysis"
+version = "0.1.0"
+defaultTargets = ["analysis"]
+
+[[lean_lib]]
+name = "Analysis"
+
+[[lean_exe]]
+name = "analysis"
+root = "Main"
