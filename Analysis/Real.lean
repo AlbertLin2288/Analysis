@@ -5,10 +5,14 @@ open Std (IsLinearOrder IsPreorder IsLinearPreorder)
 
 
 namespace AddCommGroup
-  theorem add_diff_eq_add_sub {M : Type u} [AddCommGroup M] (a b c : M):
+  variable  {M : Type u} [AddCommGroup M]
+  theorem sub_zero (a : M) : a - 0 = a := by
+    simp [AddCommGroup.sub_eq_add_neg, AddCommGroup.neg_zero, AddCommMonoid.add_zero]
+
+  theorem add_diff_eq_add_sub (a b c : M):
     a + (b - c) = a + b - c := by simp [AddCommGroup.sub_eq_add_neg, AddCommMonoid.add_assoc]
 
-  theorem sub_diff_eq_add_sub {M : Type u} [AddCommGroup M] (a b c : M):
+  theorem sub_diff_eq_add_sub (a b c : M):
     a - (b - c) = a - b + c := by
       simp [AddCommGroup.neg_add,AddCommGroup.sub_eq_add_neg, AddCommMonoid.add_assoc, AddCommGroup.neg_neg]
 
@@ -235,6 +239,44 @@ namespace Cauchy
       rw [ε12]
       exact Std.lt_of_le_of_lt abs_sum_le_sum_abs (OrderedAdd.add_lt_add h1 h2)
 
+  instance : Add (Cauchy α) where
+    add := add
+
+  def zero : Cauchy α := by
+    let s : Sequ α := fun _ => 0
+    apply PSigma.mk s
+    intro ε hε;exists 0;intros;unfold s;
+    simp [AddCommGroup.sub_zero, abs_zero_iff_zero.mpr, hε]
+
+  instance : Zero (Cauchy α) where
+    zero := zero
+
+  theorem add_zero (a : Cauchy α) : add a 0 = a := by
+    -- let (eq := ea) ⟨sa, ha⟩ := a
+    -- let (eq := e0) ⟨s0, h0⟩ := (0 : Cauchy α)
+    unfold add
+    split
+    case h_1 a sa ha =>
+      split
+      case h_1 _ s0 h0 eq0 =>
+        cases eq0
+        simp only [AddCommMonoid.add_zero]
+
+  theorem add_comm (a b : Cauchy α) : add a b = add b a := by
+    unfold add
+    split
+    case h_1 b sb hb =>
+    split
+    case h_1 a sa ha =>
+    split
+    case h_1 b' sb' hb' eqb =>
+    cases eqb
+    simp [AddCommMonoid.add_comm]
+
+  theorem add_assoc (a b c : Cauchy α) : add (add a b) c = add a (add b c) := by
+    unfold add
+    repeat split
+    simp [AddCommMonoid.add_assoc]
 
   def neg: Cauchy α → Cauchy α := by
     intro ⟨s, h⟩
@@ -246,6 +288,36 @@ namespace Cauchy
     simp only [← AddCommGroup.sub_eq_add_neg]
     exact h
 
+  instance : Neg (Cauchy α) where
+    neg := neg
+
+  instance : AddCommMonoid (Cauchy α) where
+    add_zero := add_zero
+    add_comm := add_comm
+    add_assoc := add_assoc
+
+  def sub : Cauchy α → Cauchy α → Cauchy α :=
+    fun a => (fun b => (add a (neg b)))
+
+  instance : Sub (Cauchy α) where
+    sub := sub
+
+  theorem neg_add_cancel (a : Cauchy α) : add (neg a) a = zero := by
+    unfold add neg zero
+    repeat split
+    case h_1 _ _ _ _ _ _ heq =>
+    cases heq
+    simp only [AddCommGroup.neg_add_cancel]
+
+  theorem sub_eq_add_neg (a b : Cauchy α) :  sub a b = add a (neg b) := by
+    unfold add sub neg
+    unfold add
+    repeat split
+    simp only []
+
+  instance : AddCommGroup (Cauchy α) where
+    neg_add_cancel := neg_add_cancel
+    sub_eq_add_neg := sub_eq_add_neg
 
 end Cauchy
 
