@@ -1,336 +1,39 @@
+import Analysis.Utils
+import Analysis.Cauchy
 
-open Classical
-open Lean.Grind (AddCommGroup AddCommMonoid OrderedAdd)
-open Std (IsLinearOrder IsPreorder IsLinearPreorder)
+-- open Cauchy (Cauchy)
+instance : Cauchy.cauchy_req Rat where
 
+def Real.QCauchy := Cauchy Rat
 
-namespace AddCommGroup
-  variable  {M : Type u} [AddCommGroup M]
-  theorem sub_zero (a : M) : a - 0 = a := by
-    simp [AddCommGroup.sub_eq_add_neg, AddCommGroup.neg_zero, AddCommMonoid.add_zero]
+def Real.eqv (c1 c2 : QCauchy) : Prop := sorry
 
-  theorem add_diff_eq_add_sub (a b c : M):
-    a + (b - c) = a + b - c := by simp [AddCommGroup.sub_eq_add_neg, AddCommMonoid.add_assoc]
 
-  theorem sub_diff_eq_add_sub (a b c : M):
-    a - (b - c) = a - b + c := by
-      simp [AddCommGroup.neg_add,AddCommGroup.sub_eq_add_neg, AddCommMonoid.add_assoc, AddCommGroup.neg_neg]
+namespace Real.eqv
 
-end AddCommGroup
+    protected theorem refl (c : QCauchy) : eqv c c := sorry
 
-#check HAdd
+    protected theorem symm {c1 c2 : QCauchy} : eqv c1 c2 → eqv c2 c1 :=
+      sorry
+  /-- An equivalence relation is transitive: `r x y` and `r y z` implies `r x z` -/
+    protected theorem trans {c1 c2 c3 : QCauchy} :
+      eqv c1 c2 → eqv c2 c3 → eqv c1 c3 :=
+      sorry
 
+    private theorem is_equivalence : Equivalence eqv := {
+      refl := eqv.refl,
+      symm := eqv.symm,
+      trans := eqv.trans
+    }
 
-class tp1 (α : Type) extends
-  AddCommGroup α, LE α, IsLinearOrder α, OrderedAdd α
+    instance realSetoid : Setoid QCauchy where
+      r     := eqv
+      iseqv := is_equivalence
 
+end Real.eqv
 
-noncomputable def abs {α : Type} [tp1 α] : α → α :=
-  fun (a : α) => if (a ≤ 0) then (-a) else a
+def Real : Type := Quotient Real.eqv.realSetoid
 
-namespace abs
-  variable {α : Type} [tp1 α]
+namespace Real
 
-  theorem neg_le_zero_iff_ge_zero (a : α) : (-a) ≤ 0 ↔ 0 ≤ a := by
-    have h := @OrderedAdd.neg_le_iff _ _ _ _ _ a 0
-    rw [AddCommGroup.neg_zero] at h; exact h
-
-  theorem neg_ge_zero_iff_le_zero (a : α) : a ≤ 0 ↔ 0 ≤ (-a) := by
-    have h := neg_le_zero_iff_ge_zero (-a)
-    rw [AddCommGroup.neg_neg] at h; exact h
-
-  theorem abs_ge_zero: ∀a : α, 0 ≤ abs a := by
-    intro a
-    unfold abs
-    split
-    case isTrue h => exact (neg_ge_zero_iff_le_zero a).mp h
-    case isFalse h =>
-      cases IsLinearOrder.le_total a 0 with
-        | inl ha => contradiction
-        | inr ha' => exact ha'
-
-  theorem abs_zero_iff_zero {a : α} : abs a = 0 ↔ a = 0 := by
-    apply Iff.intro
-    case mp =>
-      unfold abs
-      split
-      case isFalse h => intro;assumption
-      case isTrue h => exact (AddCommGroup.neg_eq_zero a).mp
-    case mpr =>
-      intro h
-      rw [h]
-      unfold abs
-      split <;> simp [AddCommGroup.neg_zero]
-
-  theorem abs_neg_eq_abs (a : α): abs (-a) = abs a := by
-    unfold abs
-    split
-    case isTrue h =>
-      replace h := OrderedAdd.neg_le_iff.mp h
-      rw [AddCommGroup.neg_zero] at h
-      split
-      case isTrue h'=> simp [Std.le_antisymm h' h, AddCommGroup.neg_zero]
-      case isFalse h' => simp [AddCommGroup.neg_neg]
-    case isFalse h =>
-      split
-      case isTrue => rfl
-      case isFalse h' =>
-        cases @Std.le_total α _ _ a 0
-        case inl hl => contradiction
-        case inr hr => replace hr := (neg_le_zero_iff_ge_zero a).mpr hr;contradiction
-
-  theorem le_abs (a : α) : a ≤ abs a := by
-    unfold abs;split
-    case isTrue h =>
-      have h' : 0 ≤ -a := (neg_ge_zero_iff_le_zero a).mp h
-      exact IsPreorder.le_trans a 0 (-a) h h'
-    case isFalse => exact IsPreorder.le_refl a
-
-  theorem neg_le_abs (a : α) : (-a) ≤ abs a := by
-    rw [← abs_neg_eq_abs a]
-    exact le_abs (-a)
-
-
-
-
-
-  theorem abs_sum_le_sum_abs {a b : α} :
-    abs (a + b) ≤ abs a + abs b := by
-      rw [abs]
-      split
-      . rw [AddCommGroup.neg_add]
-        exact OrderedAdd.add_le_add (neg_le_abs a) (neg_le_abs b)
-      . exact OrderedAdd.add_le_add (le_abs a) (le_abs b)
-
-  theorem abs_dif_le_sum_abs {α : Type} [tp1 α] {a b : α} :
-    abs (a - b) ≤ abs a + abs b := by
-      rw [AddCommGroup.sub_eq_add_neg, abs]
-      split
-      . rw [AddCommGroup.neg_add, AddCommGroup.neg_neg]
-        exact OrderedAdd.add_le_add (neg_le_abs a) (le_abs b)
-      . exact OrderedAdd.add_le_add (le_abs a) (neg_le_abs b)
-
-
-end abs
-
-open abs
-
-
-namespace misc
-  theorem ge_max_imp_ge_left_right {m n : Nat} {N1 N2 N : Nat} :
-    N = max N1 N2 → N ≤ m ∧ N ≤ n → (N1 ≤ m ∧ N1 ≤ n) ∧ (N2 ≤ m ∧ N2 ≤ n) := by
-      intro hmax ⟨hm, hn⟩
-      rw [hmax] at hm hn
-      apply And.intro
-      case left =>
-        apply And.intro
-        apply Std.le_trans Std.left_le_max hm
-        apply Std.le_trans Std.left_le_max hn
-      case right =>
-        apply And.intro
-        apply Std.le_trans Std.right_le_max hm
-        apply Std.le_trans Std.right_le_max hn
-
-  theorem sum_sub_sum_eq_dif_add_dif {α : Type} [AddCommGroup α] {a1 a2 b1 b2 : α}:
-    (a1 + a2) - (b1 + b2) = (a1 - b1) + (a2 - b2) := by
-      rw [
-        AddCommGroup.sub_eq_add_neg,
-        AddCommGroup.neg_add,
-        AddCommMonoid.add_assoc,
-        AddCommMonoid.add_comm a2 (-b1 + -b2),
-        ← AddCommMonoid.add_assoc,
-        ← AddCommMonoid.add_assoc,
-        AddCommMonoid.add_assoc,
-        AddCommMonoid.add_comm (-b2) a2,
-        ← AddCommGroup.sub_eq_add_neg,
-        ← AddCommGroup.sub_eq_add_neg
-      ]
-
-end misc
-
-open misc
-
-namespace Cauchy
-
-  def Sequ (α : Type) : Type := Nat → α
-
-  class cauchy_req (α : Type) extends
-    Lean.Grind.AddCommGroup α,
-    LE α, LT α,
-    Std.IsLinearOrder α, Std.LawfulOrderLT α,
-    OrderedAdd α
-
-  namespace cauchy_req
-    instance inst_tp1 {α : Type} [cauchy_req α] : tp1 α where
-  end cauchy_req
-
-  def Cauchy (α : Type) [cauchy_req α] :=
-    Σ' (s : Sequ α), (
-      ∀ε : α,
-        ε > (0 : α) → ∃N : Nat, ∀(m n : Nat), (m ≥ N ∧ n ≥ N) →
-          abs (s m - s n) < ε
-    )
-
-  variable {α : Type} [cauchy_req α]
-
-  def add: Cauchy α → Cauchy α → Cauchy α := by
-    intro ⟨s1, h1⟩ ⟨s2, h2⟩
-    let s3 : Sequ α := fun (n : Nat) => (s1 n) + (s2 n)
-    apply PSigma.mk
-    case fst => exact s3
-    intro ε hep
-    cases em (∃ε2 : α, 0 < ε2 ∧ ε2 < ε) with
-    | inr hne =>
-      have hl0 : ∀x : α, x < ε → x ≤ 0 := by
-        simp at hne
-        intro x hxε
-        apply Std.not_lt.mp
-        exact imp_not_comm.mp (hne x) hxε
-      replace h1 := h1 ε hep
-      replace h2 := h2 ε hep
-      -- match h1 with  N1 h =>
-      let ⟨N1, h1⟩ := h1
-      let ⟨N2, h2⟩ := h2
-      let (eq := hNeq) N := max N1 N2
-      exists N
-      intro m n hmn
-      have ⟨hN1,hN2⟩ := ge_max_imp_ge_left_right hNeq hmn
-      unfold s3
-      generalize hd : s1 m + s2 m - (s1 n + s2 n) = d
-      replace h1 := hl0 (abs (s1 m - s1 n)) (h1 m n hN1)
-      replace h2 := hl0 (abs (s2 m - s2 n)) (h2 m n hN2)
-      replace h1 := abs_zero_iff_zero.mp (Std.le_antisymm h1 (abs_ge_zero (s1 m - s1 n)))
-      replace h2 := abs_zero_iff_zero.mp (Std.le_antisymm h2 (abs_ge_zero (s2 m - s2 n)))
-      -- simp [AddCommGroup.add_assoc,AddCommGroup.add_comm] at hd
-      rw [
-        sum_sub_sum_eq_dif_add_dif,
-        h1, h2, AddCommMonoid.add_zero 0
-      ] at hd
-      rw [← hd, abs_zero_iff_zero.mpr]
-      exact hep;rfl
-    | inl he =>
-      let ⟨ε1, hε1⟩ := he
-      let ⟨hε10, hε1ε⟩ := hε1
-      let ε2 := ε - ε1
-      have hε20 : 0 < ε2 := by
-        unfold ε2;
-        rw [← AddCommGroup.add_neg_cancel ε1];
-        repeat rw [AddCommGroup.sub_eq_add_neg]
-        apply (OrderedAdd.add_lt_left_iff (-ε1)).mp
-        exact hε1ε
-      -- have hε2ε : ε2 < ε := by
-      replace ⟨N1, h1⟩ := h1 ε1 hε10
-      replace ⟨N2, h2⟩ := h2 ε2 hε20
-      let (eq := hNeq) N := max N1 N2
-      exists N
-      intro m n hmn
-      have ⟨hN1,hN2⟩ := ge_max_imp_ge_left_right hNeq hmn
-      replace h1 := h1 m n hN1
-      replace h2 := h2 m n hN2
-      unfold s3
-      rw [sum_sub_sum_eq_dif_add_dif]
-      have ε12 : ε = ε1 + ε2 := by
-        unfold ε2
-        rw [
-          AddCommGroup.sub_eq_add_neg, AddCommMonoid.add_comm,
-          AddCommMonoid.add_assoc,AddCommGroup.neg_add_cancel
-        ]
-        exact (AddCommMonoid.add_zero ε).symm
-      rw [ε12]
-      exact Std.lt_of_le_of_lt abs_sum_le_sum_abs (OrderedAdd.add_lt_add h1 h2)
-
-  instance : Add (Cauchy α) where
-    add := add
-
-  def zero : Cauchy α := by
-    let s : Sequ α := fun _ => 0
-    apply PSigma.mk s
-    intro ε hε;exists 0;intros;unfold s;
-    simp [AddCommGroup.sub_zero, abs_zero_iff_zero.mpr, hε]
-
-  instance : Zero (Cauchy α) where
-    zero := zero
-
-  theorem add_zero (a : Cauchy α) : add a 0 = a := by
-    -- let (eq := ea) ⟨sa, ha⟩ := a
-    -- let (eq := e0) ⟨s0, h0⟩ := (0 : Cauchy α)
-    unfold add
-    split
-    case h_1 a sa ha =>
-      split
-      case h_1 _ s0 h0 eq0 =>
-        cases eq0
-        simp only [AddCommMonoid.add_zero]
-
-  theorem add_comm (a b : Cauchy α) : add a b = add b a := by
-    unfold add
-    split
-    case h_1 b sb hb =>
-    split
-    case h_1 a sa ha =>
-    split
-    case h_1 b' sb' hb' eqb =>
-    cases eqb
-    simp [AddCommMonoid.add_comm]
-
-  theorem add_assoc (a b c : Cauchy α) : add (add a b) c = add a (add b c) := by
-    unfold add
-    repeat split
-    simp [AddCommMonoid.add_assoc]
-
-  def neg: Cauchy α → Cauchy α := by
-    intro ⟨s, h⟩
-    let s' : Sequ α := fun (n : Nat) => -(s n)
-    apply PSigma.mk s'
-    unfold s'
-    simp (singlePass := true) only [← abs_neg_eq_abs]
-    simp only [AddCommGroup.sub_eq_add_neg, AddCommGroup.neg_add, AddCommGroup.neg_neg]
-    simp only [← AddCommGroup.sub_eq_add_neg]
-    exact h
-
-  instance : Neg (Cauchy α) where
-    neg := neg
-
-  instance : AddCommMonoid (Cauchy α) where
-    add_zero := add_zero
-    add_comm := add_comm
-    add_assoc := add_assoc
-
-  def sub : Cauchy α → Cauchy α → Cauchy α :=
-    fun a => (fun b => (add a (neg b)))
-
-  instance : Sub (Cauchy α) where
-    sub := sub
-
-  theorem neg_add_cancel (a : Cauchy α) : add (neg a) a = zero := by
-    unfold add neg zero
-    repeat split
-    case h_1 _ _ _ _ _ _ heq =>
-    cases heq
-    simp only [AddCommGroup.neg_add_cancel]
-
-  theorem sub_eq_add_neg (a b : Cauchy α) :  sub a b = add a (neg b) := by
-    unfold add sub neg
-    unfold add
-    repeat split
-    simp only []
-
-  instance : AddCommGroup (Cauchy α) where
-    neg_add_cancel := neg_add_cancel
-    sub_eq_add_neg := sub_eq_add_neg
-
-end Cauchy
-
-
-
-
-
-
-
--- namespace Real
---   -- class eqv (s1 s2 : Sequ Rat) [is_cauchy s1] [is_cauchy s2] : Prop where
---   private def eqv {s₁ s₂ : Sequ Rat} (h1: is_cauchy s₁) (h2: is_cauchy s₂) : Prop :=
-
-
--- infix (name := eqv) `~`:50 := eq
--- end Real
+end Real
