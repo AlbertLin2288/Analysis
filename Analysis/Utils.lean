@@ -18,6 +18,9 @@ namespace Lean.Grind.AddCommGroup
     a - (b - c) = a - b + c := by
       simp [neg_add,sub_eq_add_neg, add_assoc, neg_neg]
 
+  theorem neg_sub' (a b : M) : -(a - b) = -a - -b := by
+    simp [sub_eq_add_neg,neg_add]
+
 end Lean.Grind.AddCommGroup
 
 
