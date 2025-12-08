@@ -1,17 +1,20 @@
 import Analysis.Utils
 import Analysis.Cauchy
 
-open Lean.Grind (AddCommGroup AddCommMonoid OrderedAdd)
+open Lean.Grind (
+  AddCommGroup AddCommMonoid
+  OrderedAdd OrderedRing
+  Semiring Ring CommSemiring CommRing
+  Field
+)
 open Std (IsLinearOrder IsPreorder IsLinearPreorder)
 
--- open Cauchy (Cauchy)
 instance : Seq_type Rat where
 
 @[reducible] def Real.QCauchy := Cauchy Rat
 @[reducible] def Real.QConverge := Converge Rat
 
 
--- def Real.eqv (c1 c2 : QCauchy) : Prop := Converge.converge (c1.s - c2.s) 0
 
 structure Real.eqv (c1 c2 : QCauchy) : Prop where
   h : Converge.converge (c1.s - c2.s) 0
@@ -24,9 +27,6 @@ namespace Real.eqv
 
   instance to_conv {c1 c2 : QCauchy} (e : eqv c1 c2): QConverge :=
     Converge.mk (c1.s - c2.s) 0 e.h
-
-  -- instance QConverge : {c1 c2 : QCauchy} (e : eqv c1 c2): :=
-  --   Converge.mk (c1.s - c2.s) 0 e.h
 
   @[refl] protected theorem refl (c : QCauchy) : eqv c c := by
     apply eqv.mk
@@ -75,6 +75,9 @@ def Real : Type := Quotient Real.eqv.realSetoid
 namespace Real
 
   def mk (a : QCauchy) : Real := Quotient.mk' a
+
+
+  -- Group
 
   private def add_fn: QCauchy → QCauchy → Real :=
     fun a b => Real.mk (a + b)
